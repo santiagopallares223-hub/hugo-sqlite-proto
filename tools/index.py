@@ -29,6 +29,7 @@ CONTENT = Path("content")
 DB = Path("build/site.db")
 OUT_SEARCH = Path("static/search.json")
 OUT_TAGS = Path("data/tags.json")
+INCLUDE_DRAFTS = '--drafts' in sys.argv
 
 SCHEMA = """
 CREATE TABLE posts (
@@ -131,11 +132,9 @@ def read_page(path):
         "text": text,
     }
 
-
 def read_all():
     files = (p for p in sorted(CONTENT.rglob("*.md")) if p.name != "_index.md")
-    return [page for page in map(read_page, files) if not page["draft"]]
-
+    return [page for page in map(read_page, files) if not page["draft"] or INCLUDE_DRAFTS]
 
 # --- efectos: disco y SQL ----------------------------------------------------
 
