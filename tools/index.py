@@ -29,6 +29,7 @@ CONTENT = Path("content")
 DB = Path("build/site.db")
 OUT_SEARCH = Path("static/search.json")
 OUT_TAGS = Path("data/tags.json")
+OUT_WORDS = Path("data/words.json")
 INCLUDE_DRAFTS = '--drafts' in sys.argv
 
 SCHEMA = """
@@ -43,6 +44,11 @@ CREATE TABLE tags (
   url TEXT NOT NULL REFERENCES posts(url),
   tag TEXT NOT NULL,
   PRIMARY KEY (url, tag)
+);
+
+CREATE TABLE words (
+  url TEXT PRIMARY KEY REFERENCES posts(url),
+  n INTEGER NOT NULL
 );
 """
 
@@ -66,7 +72,9 @@ FROM (
   SELECT tag, COUNT(*) AS total FROM tags GROUP BY tag ORDER BY total DESC, tag
 )
 """
-
+Q_WORDS = """
+SELECT json_object('total', SUM(n)) FROM words
+"""
 # --- funciones puras ---------------------------------------------------------
 
 def split_front_matter(text):
@@ -149,6 +157,10 @@ def build_db(pages):
     con.executemany(
         "INSERT OR IGNORE INTO tags(url, tag) VALUES (?, ?)",
         [(p["url"], t) for p in pages for t in p["tags"]])
+    con.executemany(
+        "INSERT INTO words(url, n) VALUES (?, ?)",
+        [(p["url"], len(p["text"].split())) for p in pages])
+
     con.commit()
     return con
 
@@ -165,6 +177,7 @@ def main():
     con = build_db(pages)
     export(con, Q_SEARCH, OUT_SEARCH)
     export(con, Q_TAGS, OUT_TAGS)
+    export(con, Q_WORDS, OUT_WORDS)
     con.close()
     print(f"index: {len(pages)} páginas → {OUT_SEARCH}, {OUT_TAGS}")
 
