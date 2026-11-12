@@ -17,12 +17,22 @@ const terms = query => normalize(query).split(/\s+/).filter(Boolean);
 
 const haystack = post => normalize(`${post.title} ${post.tags.join(" ")} ${post.text}`);
 
-// Un post coincide si contiene TODOS los términos
-const matches = ts => post => ts.every(t => haystack(post).includes(t));
+// Cuenta cuántas veces aparecen los términos en el texto normalizado del post
+const score = ts => post => {
+  const content = haystack(post);
+  // Para cada término buscado, contamos cuántas veces divide al contenido
+  return ts.reduce((acc, t) => acc + (content.split(t).length - 1), 0);
+};
 
 const search = (posts, query) => {
   const ts = terms(query);
-  return ts.length ? posts.filter(matches(ts)) : [];
+  if (!ts.length) return [];
+  
+  return posts
+    .map(post => ({ post, pts: score(ts)(post) })) // 1. Extraemos los puntos
+    .filter(item => item.pts > 0)                  // 2. Filtramos los que coinciden
+    .sort((a, b) => b.pts - a.pts)                 // 3. Ordenamos de mayor a menor
+    .map(item => item.post);                       // 4. Devolvemos los posts limpios
 };
 
 // --- efectos (DOM) ----------------------------------------------------------
